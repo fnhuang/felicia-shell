@@ -1,0 +1,5 @@
+<testsuite errors="0" failures="0" name="nose2-junit" skipped="0" tests="1" time="0.001">
+  <testcase classname="test_shell.TestShell" name="test_shell" time="0.000501" timestamp="2022-06-20T15:31:23.547637">
+    <system-out />
+  </testcase>
+</testsuite>
