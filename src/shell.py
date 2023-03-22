@@ -47,7 +47,7 @@ def eval(cmdline, out):
     for command in raw_commands:
         tokens = []
 
-        # find token that matches any character other than whitespace and "
+        # find token that matches any character other than whitespace,' and "
         # or any word surrounded by "", that is not "
         # or any word surrounded by '', that is not '
         # for each non-overlapping match
@@ -60,7 +60,7 @@ def eval(cmdline, out):
                 # remove the quotes and add into the list of tokens
                 tokens.append(quoted[1:-1])
             else:
-                # glob function is a module that search for a search for files where the filename matches a certain pattern
+                # glob function is a module that searches for files where the filename matches a certain pattern
                 # by using wildcard characters.
                 globbing = glob(m.group(0))
                 if globbing:
