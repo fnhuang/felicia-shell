@@ -5,9 +5,11 @@ import os
 import pytest
 import io
 from glob import glob
+from collections import deque
 
 REQ_CONTENT = "nose2\ncoverage\nflake8-html\njunit2html\n"
 ENV_CONTENT = "PYTHONPATH=src:test"
+README_CONTENT = "COMP0010 Shell is a [shell](https://en.wikipedia.org/wiki/Shell_(computing)) created for educational purposes."
 
 
 @pytest.fixture
@@ -20,8 +22,14 @@ def create_temp_files(tmpdir):
     temp_file.write(REQ_CONTENT)
     temp_file2 = temp_dir.join(".env")
     temp_file2.write(ENV_CONTENT)
+    temp_file3 = temp_dir.join("README.md")
+    temp_file3.write(README_CONTENT)
 
-    return {"REQPATH": str(temp_file), "ENVPATH": str(temp_file2)}
+    return {
+        "REQPATH": str(temp_file),
+        "ENVPATH": str(temp_file2),
+        "README": str(temp_file3),
+    }
 
 
 @pytest.fixture
@@ -80,95 +88,110 @@ class TestCat:
 
     def test_read_1file(self, create_temp_files):
         app = create_application("cat")
-        output = app.execute([create_temp_files["REQPATH"]])
+        inp = deque()
+        out = deque()
+        app.execute([create_temp_files["REQPATH"]], inp, out)
 
         rq_content = "nose2\ncoverage\nflake8-html\njunit2html\n"
-        assert output == rq_content
+        assert app.get_str_from_deque(out) == rq_content
 
     def test_read_mt1file(self, create_temp_files):
         app = create_application("cat")
+        inp = deque()
+        out = deque()
+
         # str(temp_file) will give the full directory
-        output = app.execute(
-            [create_temp_files["REQPATH"], create_temp_files["ENVPATH"]]
+        app.execute(
+            [create_temp_files["REQPATH"], create_temp_files["ENVPATH"]], inp, out
         )
 
         rq_content = "nose2\ncoverage\nflake8-html\njunit2html\nPYTHONPATH=src:test"
 
-        assert output == rq_content
-
-    def test_read_stdin(self, monkeypatch):
-        monkeypatch.setattr("sys.stdin", io.StringIO("seryozha gemes"))
-
-        app = create_application("cat")
-        output = app.execute()
-
-        assert output == "seryozha gemes"
+        assert app.get_str_from_deque(out) == rq_content
 
 
 class TestUnique:
     def test_wrong_argsno(self):
         app = create_application("uniq")
+        inp = deque()
+        out = deque()
         with pytest.raises(ValueError):
-            app.execute(["args1", "args2", "args3"])
+            app.execute(["args1", "args2", "args3"], inp, out)
 
     def test_wrong_flags(self):
         app = create_application("uniq")
+        inp = deque()
+        out = deque()
         with pytest.raises(ValueError):
-            app.execute(["args1", "args2"])
+            app.execute(["args1", "args2"], inp, out)
 
-    def test_0arg(self, monkeypatch):
+    def test_0arg(self):
         app = create_application("uniq")
-        monkeypatch.setattr(
-            "sys.stdin",
-            io.StringIO(
-                "mrs. dalloway\nbrother karamazov\n"
-                "BrothEr KaRamazov\nlittle house on the prairie"
-                "\nlittle house on the prairie\nmrs.dalloway"
-                "\nAnne of Green Gables"
-            ),
+        inp = deque()
+        out = deque()
+
+        inp = deque(
+            [
+                "mrs. dalloway\n",
+                "brother karamazov\n",
+                "BrothEr KaRamazov\n",
+                "little house on the prairie\n",
+                "little house on the prairie\n",
+                "mrs.dalloway\n",
+                "Anne of Green Gables\n",
+            ]
         )
-        output = app.execute([])
+
+        app.execute([], inp, out)
 
         assert (
-            output == "mrs. dalloway\nbrother karamazov\n"
+            app.get_str_from_deque(out) == "mrs. dalloway\nbrother karamazov\n"
             "BrothEr KaRamazov\nlittle house on the prairie"
             "\nmrs.dalloway"
-            "\nAnne of Green Gables"
+            "\nAnne of Green Gables\n"
         )
 
-    def test_1arg_inv(self, monkeypatch):
+    def test_1arg_inv(self):
         app = create_application("uniq")
-        monkeypatch.setattr(
-            "sys.stdin",
-            io.StringIO(
-                "mrs. dalloway\nbrother karamazov\n"
-                "BrothEr KaRamazov\nlittle house on the prairie"
-                "\nlittle house on the prairie\nmrs.dalloway"
-                "\nAnne of Green Gables"
-            ),
+        out = deque()
+        inp = deque(
+            [
+                "mrs. dalloway\n",
+                "brother karamazov\n",
+                "BrothEr KaRamazov\n",
+                "little house on the prairie\n",
+                "little house on the prairie\n",
+                "mrs.dalloway\n",
+                "Anne of Green Gables\n",
+            ]
         )
-        output = app.execute(["-i"])
+
+        app.execute(["-i"], inp, out)
 
         assert (
-            output == "mrs. dalloway\nbrother karamazov\n"
+            app.get_str_from_deque(out) == "mrs. dalloway\nbrother karamazov\n"
             "little house on the prairie"
             "\nmrs.dalloway"
-            "\nAnne of Green Gables"
+            "\nAnne of Green Gables\n"
         )
 
     def test_1arg(self, create_dup_textfiles):
         app = create_application("uniq")
-        output = app.execute([create_dup_textfiles])
+        inp = deque()
+        out = deque()
+        app.execute([create_dup_textfiles], inp, out)
         assert (
-            output == "Hello world\nFrogs in the rain\n"
+            app.get_str_from_deque(out) == "Hello world\nFrogs in the rain\n"
             "Dog bites\nNew home\nHello World\nhello world\nWinter wonderland"
         )
 
     def test_2arg(self, create_dup_textfiles):
         app = create_application("uniq")
-        output = app.execute(["-i", create_dup_textfiles])
+        inp = deque()
+        out = deque()
+        app.execute(["-i", create_dup_textfiles], inp, out)
         assert (
-            output == "Hello world\nFrogs in the rain\n"
+            app.get_str_from_deque(out) == "Hello world\nFrogs in the rain\n"
             "Dog bites\nNew home\nHello World\nWinter wonderland"
         )
 
@@ -176,72 +199,94 @@ class TestUnique:
 class TestSort:
     def test_wrong_argsno(self):
         app = create_application("sort")
+        inp = deque()
+        out = deque()
         with pytest.raises(ValueError):
-            app.execute(["args1", "args2", "args3"])
+            app.execute(["args1", "args2", "args3"], inp, out)
 
     def test_wrong_flags(self):
         app = create_application("sort")
+        inp = deque()
+        out = deque()
         with pytest.raises(ValueError):
-            app.execute(["args1", "args2"])
+            app.execute(["args1", "args2"], inp, out)
 
-    def test_stdinput(self, monkeypatch):
-        monkeypatch.setattr("sys.stdin", io.StringIO("hello\nworld\naffogato"))
-
+    def test_stdinput(self):
         app = create_application("sort")
-        output = app.execute([])
+        inp = deque(["hello", "world", "affogato"])
+        out = deque()
+        app.execute([], inp, out)
 
-        assert output == "affogato\nhello\nworld\n"
+        assert app.get_str_from_deque(out) == "affogato\nhello\nworld\n"
 
-    def test_stdinput_reverse(self, monkeypatch):
-        monkeypatch.setattr("sys.stdin", io.StringIO("hello\nworld\naffogato"))
-
+    def test_stdinput_reverse(self):
         app = create_application("sort")
-        output = app.execute(["-r"])
+        inp = deque(["hello", "world", "affogato"])
+        out = deque()
+        app.execute(["-r"], inp, out)
 
-        assert output == "world\nhello\naffogato\n"
+        assert app.get_str_from_deque(out) == "world\nhello\naffogato\n"
 
     def test_readfile(self, create_temp_files):
         app = create_application("sort")
-        output = app.execute([create_temp_files["REQPATH"]])
+        inp = deque()
+        out = deque()
+        app.execute([create_temp_files["REQPATH"]], inp, out)
 
-        assert output == "coverage\nflake8-html\njunit2html\nnose2\n"
+        assert (
+            app.get_str_from_deque(out) == "coverage\nflake8-html\njunit2html\nnose2\n"
+        )
 
     def test_readfile_reverse(self, create_temp_files):
         app = create_application("sort")
-        output = app.execute(["-r", create_temp_files["REQPATH"]])
+        inp = deque()
+        out = deque()
+        app.execute(["-r", create_temp_files["REQPATH"]], inp, out)
 
-        assert output == "nose2\njunit2html\nflake8-html\ncoverage\n"
+        assert (
+            app.get_str_from_deque(out) == "nose2\njunit2html\nflake8-html\ncoverage\n"
+        )
 
 
 class TestFind:
     def test_wrong_argsno(self):
         app = create_application("find")
+        inp = deque()
+        out = deque()
         with pytest.raises(ValueError):
-            output = app.execute(["args1"])
+            app.execute(["args1"], inp, out)
 
     def test_wrong_flags(self):
         app = create_application("find")
+        inp = deque()
+        out = deque()
         with pytest.raises(ValueError):
-            output = app.execute(["args1", "args2"])
+            app.execute(["args1", "args2"], inp, out)
 
     def test_found(self, create_fnooi_dir):
         app = create_application("find")
-        output = app.execute([create_fnooi_dir, "-name", "april2021*"])
+        inp = deque()
+        out = deque()
+        app.execute([create_fnooi_dir, "-name", "april2021*"], inp, out)
 
         globbing = glob(f"{create_fnooi_dir}/**/april2021*", recursive=True)
-        assert output == "\n".join(globbing)
+        assert app.get_str_from_deque(out) == "\n".join(globbing) + "\n"
 
     def test_not_found(self, create_fnooi_dir):
         app = create_application("find")
-        output = app.execute([create_fnooi_dir, "-name", "ril2021*"])
-        assert output == ""
+        inp = deque()
+        out = deque()
+        app.execute([create_fnooi_dir, "-name", "ril2021*"], inp, out)
+        assert app.get_str_from_deque(out) == ""
 
 
 class TestUnsafeDecorator:
     def test_no_exception_raised(self):
         app = UnsafeDecorator(create_application("grep"))
+        inp = deque()
+        out = deque()
         try:
-            output = app.execute(["args1"])
+            app.execute(["args1"], inp, out)
         except ValueError as ve:
             # assertion is false because an exception is raised
             assert False, "Exception is raised"
@@ -250,179 +295,226 @@ class TestUnsafeDecorator:
 class TestCut:
     def test_wrongargsno(self):
         app = create_application("cut")
+        inp = deque()
+        out = deque()
         with pytest.raises(ValueError):
-            output = app.execute(["args1"])
+            app.execute(["args1"], inp, out)
 
     def test_1starg_notb(self):
         app = create_application("cut")
+        inp = deque()
+        out = deque()
         with pytest.raises(ValueError):
-            output = app.execute(["args1", "args2"])
+            app.execute(["args1", "args2"], inp, out)
 
-    def test_stdin_comma_args(self, monkeypatch):
-        monkeypatch.setattr("sys.stdin", io.StringIO("hello world\nhome sweet home"))
-
+    def test_stdin_comma_args(self):
         app = create_application("cut")
-        output = app.execute(["-b", "1,2,3"])
-        assert output == "hel\nhom\n"
+        inp = deque(["hello world\n", "home sweet home\n"])
+        out = deque()
+        app.execute(["-b", "1,2,3"], inp, out)
+        assert app.get_str_from_deque(out) == "hel\nhom\n"
 
-    def test_stdin_hyphen_2side_args(self, monkeypatch):
-        monkeypatch.setattr("sys.stdin", io.StringIO("hello world\nhome sweet home"))
-
+    def test_stdin_hyphen_2side_args(self):
         app = create_application("cut")
-        output = app.execute(["-b", "1-3,7-9"])
-        assert output == "helwor\nhomwee\n"
+        inp = deque(["hello world\n", "home sweet home\n"])
+        out = deque()
+        app.execute(["-b", "1-3,7-9"], inp, out)
+        assert app.get_str_from_deque(out) == "helwor\nhomwee\n"
 
-    def test_stdin_hyphen_1side_args(self, monkeypatch):
-        monkeypatch.setattr("sys.stdin", io.StringIO("hello world\nhome sweet home"))
-
+    def test_stdin_hyphen_1side_args(self):
         app = create_application("cut")
-        output = app.execute(["-b", "-3,7-"])
-        assert output == "helworld\nhomweet home\n"
+        inp = deque(["hello world\n", "home sweet home\n"])
+        out = deque()
+        app.execute(["-b", "-3,7-"], inp, out)
+        assert app.get_str_from_deque(out) == "helworld\nhomweet home\n"
 
     def test_filein(self, create_sample_file_4cut):
         app = create_application("cut")
-        output = app.execute(["-b", "1-3,7-9", create_sample_file_4cut])
+        inp = deque()
+        out = deque()
+        app.execute(["-b", "1-3,7-9", create_sample_file_4cut], inp, out)
 
-        assert output == "helwor\nhomwee\n"
+        assert app.get_str_from_deque(out) == "helwor\nhomwee\n"
 
 
 class TestGrep:
     def test_wrong_argsno(self):
         app = create_application("grep")
+        inp = deque()
+        out = deque()
         with pytest.raises(ValueError):
-            output = app.execute(["args1"])
+            app.execute(["args1"], inp, out)
 
-    def test_onefile(self):
+    def test_onefile(self, create_temp_files):
         app = create_application("grep")
-        output = app.execute(["html", "../requirements.txt"])
+        inp = deque()
+        out = deque()
+        app.execute(["html", create_temp_files["REQPATH"]], inp, out)
 
         right_answer = "flake8-html\njunit2html"
 
-    def test_multiplefiles(self):
+    def test_multiplefiles(self, create_temp_files):
         app = create_application("grep")
-        output = app.execute(["ose", "../requirements.txt", "../README.md"])
-        right_answer = (
-            "../requirements.txt:nose2\n../README.md:COMP0010 Shell is "
-            + "a [shell](https://en.wikipedia.org/wiki/Shell_(computing)) created "
-            + "for educational purposes. \n"
+        inp = deque()
+        out = deque()
+        app.execute(
+            ["ose", create_temp_files["REQPATH"], create_temp_files["README"]], inp, out
         )
 
-        assert output == right_answer
+        reqpath = create_temp_files["REQPATH"]
+        readpath = create_temp_files["README"]
+        right_answer = (
+            f"{reqpath}:nose2\n{readpath}:COMP0010 Shell is "
+            + f"a [shell](https://en.wikipedia.org/wiki/Shell_(computing)) created "
+            + f"for educational purposes."
+        )
+
+        assert app.get_str_from_deque(out) == right_answer
 
 
 class TestEcho:
     def test_echo(self):
         app = create_application("echo")
-        output = app.execute(["hello world"])
-        assert output == "hello world\n"
+        inp = deque()
+        out = deque()
+        app.execute(["hello world"], inp, out)
+        assert app.get_str_from_deque(out) == "hello world\n"
 
 
 class TestHead:
-    def test_head_wrong_args_no(self):
+    def test_head_wrong_args_no(self, create_temp_files):
         app = create_application("head")
+        inp = deque()
+        out = deque()
         with pytest.raises(ValueError):
-            output = app.execute(["../requirements.txt", "3"])
+            app.execute([create_temp_files["REQPATH"], "3"], inp, out)
 
-    def test_head_wrong_flags(self):
+    def test_head_wrong_flags(self, create_temp_files):
         app = create_application("head")
+        inp = deque()
+        out = deque()
         with pytest.raises(ValueError):
-            output = app.execute(["../requirements.txt", "3", "4"])
+            app.execute([create_temp_files["REQPATH"], "3", "4"], inp, out)
 
-    def test_with_flag(self):
+    def test_with_flag(self, create_temp_files):
         app = create_application("head")
-        output = app.execute(["-n", 3, "../requirements.txt"])
+        inp = deque()
+        out = deque()
+        app.execute(["-n", 3, create_temp_files["REQPATH"]], inp, out)
         rq_content = "nose2\ncoverage\nflake8-html\n"
 
-        assert output == rq_content
+        assert app.get_str_from_deque(out) == rq_content
 
-    def test_no_flag(self):
+    def test_no_flag(self, create_temp_files):
         app = create_application("head")
-        output = app.execute(["../requirements.txt"])
+        inp = deque()
+        out = deque()
+        app.execute([create_temp_files["REQPATH"]], inp, out)
 
         rq_content = "nose2\ncoverage\nflake8-html\njunit2html\n"
-        assert output == rq_content
+        assert app.get_str_from_deque(out) == rq_content
 
 
 class TestTail:
     def test_tail_wrong_args_no(self):
         app = create_application("tail")
+        inp = deque()
+        out = deque()
         with pytest.raises(ValueError):
-            output = app.execute(["../requirements.txt", "3"])
+            app.execute(["../requirements.txt", "3"], inp, out)
 
     def test_tail_wrong_flags(self):
         app = create_application("tail")
+        inp = deque()
+        out = deque()
         with pytest.raises(ValueError):
-            output = app.execute(["../requirements.txt", "3", "4"])
+            app.execute(["../requirements.txt", "3", "4"], inp, out)
 
-    def test_with_flag(self):
+    def test_with_flag(self, create_temp_files):
         app = create_application("tail")
-        output = app.execute(["-n", 2, "../requirements.txt"])
+        inp = deque()
+        out = deque()
+        app.execute(["-n", 2, create_temp_files["REQPATH"]], inp, out)
         rq_content = "flake8-html\njunit2html\n"
 
-        assert output == rq_content
+        assert app.get_str_from_deque(out) == rq_content
 
-    def test_no_flag(self):
+    def test_no_flag(self, create_temp_files):
         app = create_application("tail")
-        output = app.execute(["../requirements.txt"])
+        inp = deque()
+        out = deque()
+        app.execute([create_temp_files["REQPATH"]], inp, out)
 
         rq_content = "nose2\ncoverage\nflake8-html\njunit2html\n"
-        assert output == rq_content
+        assert app.get_str_from_deque(out) == rq_content
 
 
 class TestCd:
     def test_cd_argsno(self):
         app = create_application("cd")
+        inp = deque()
+        out = deque()
 
         with pytest.raises(ValueError):
-            strout = app.execute(["args1", "args2"])
+            app.execute(["args1", "args2"], inp, out)
 
     def test_cd(self):
         app = create_application("cd")
+        inp = deque()
+        out = deque()
         cwd = os.getcwd()
         up1level = cwd[0 : cwd.rfind("\\")]
 
-        strout = app.execute([".."])
-        assert strout == up1level
+        app.execute([".."], inp, out)
+        assert app.get_str_from_deque(out) == up1level
 
 
 class TestLs:
     def test_ls_noargs(self):
         app = create_application("cd")
+        inp = deque()
+        out = deque()
 
         with pytest.raises(ValueError):
-            strout = app.execute(["args1", "args2"])
+            app.execute(["args1", "args2"], inp, out)
 
     def test_ls_zeroargs(self):
-        output = []
+        lsres = []
         # list all the files inside lis_dir
         for f in os.listdir(os.getcwd()):
             if not f.startswith("."):
-                output.append(f + "\n")
+                lsres.append(f + "\n")
 
+        inp = deque()
+        out = deque()
         app = create_application("ls")
-        strout = app.execute()
+        app.execute([], inp, out)
 
-        assert strout == "".join(output)
+        assert app.get_str_from_deque(out) == "".join(lsres)
 
     def test_ls_wrongargs(self):
         app = create_application("ls")
+        inp = deque()
+        out = deque()
         with pytest.raises(FileNotFoundError):
-            strout = app.execute(["hello"])
+            app.execute(["hello"], inp, out)
 
     def test_ls_rightargs(self):
         cwd = os.getcwd()
         up1level = cwd[0 : cwd.rfind("\\")]
 
-        output = []
+        lsres = []
         # list all the files inside lis_dir
         for f in os.listdir(up1level):
             if not f.startswith("."):
-                output.append(f + "\n")
+                lsres.append(f + "\n")
 
         app = create_application("ls")
-        strout = app.execute([up1level])
+        inp = deque()
+        out = deque()
+        app.execute([up1level], inp, out)
 
-        assert strout == "".join(output)
+        assert app.get_str_from_deque(out) == "".join(lsres)
 
 
 class TestPwd:
@@ -430,25 +522,33 @@ class TestPwd:
 
     def test_pwd(self):
         app = create_application("pwd")
-        strout = app.execute()
+        inp = deque()
+        out = deque()
+        app.execute([], inp, out)
 
-        assert strout == os.getcwd()
+        assert app.get_str_from_deque(out) == os.getcwd()
 
     def test_pwd_args_noflags(self):
         app = create_application("pwd")
-        strout = app.execute(["args1", "args", "arg3"])
+        inp = deque()
+        out = deque()
+        app.execute(["args1", "args", "arg3"], inp, out)
 
         # somehow new application is not created so the output is not empty. output contains things from previous test
-        assert strout == os.getcwd()
+        assert app.get_str_from_deque(out) == os.getcwd()
 
     def test_pwd_args_okflags(self):
         app = create_application("pwd")
+        inp = deque()
+        out = deque()
 
         with pytest.raises(ValueError):
-            strout = app.execute(["-L", "args2"])
+            app.execute(["-L", "args2"], inp, out)
 
     def test_pwd_args_wrongflags(self):
         app = create_application("pwd")
+        inp = deque()
+        out = deque()
 
         with pytest.raises(ValueError):
-            strout = app.execute(["args1", "-G"])
+            strout = app.execute(["args1", "-G"], inp, out)

@@ -5,7 +5,7 @@
         "editor.formatOnSaveMode": "file",
         "editor.formatOnSave": true
     },
-    "python.envFile": "${workspaceRoot}/.env",
+    "python.envFile": "${workspaceFolder}/.env",
     "python.testing.pytestArgs": [
         "pytest"
     ],

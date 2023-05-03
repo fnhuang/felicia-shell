@@ -4,33 +4,10 @@ import os
 from os import listdir
 from collections import deque
 from glob import glob
-
-"""class Command:
-    def eval(self, input, output):
-        pass
-
-class Call(Command):
-    def eval(self, input, output):
-        pass
-
-class Seq(Command):
-    def __init__(self, left, right):
-        self.left = left
-        self.right = right
-
-    def eval(self, input, output):
-        self.left(input, output)
-        self.right(None, output)
-
-def eval(cmdline, input, output):
-    command = parse_command(cmdline)
-    command.eval(input, output)
-
-def parse_command(cmline):
-    pass"""
+from shell_parser import parse
 
 
-def eval(cmdline, out):
+def old_eval(cmdline, out):
     raw_commands = []
 
     # find command that matches any character other than " ' ;
@@ -160,6 +137,12 @@ def eval(cmdline, out):
                                 out.append(line)
         else:
             raise ValueError(f"unsupported application {app}")
+
+
+def eval(cmdline, out):
+    cmd = parse(cmdline)
+    print(cmd)
+    cmd.eval(deque(), out)
 
 
 if __name__ == "__main__":

@@ -10,11 +10,8 @@ import sys
 import re
 
 
-# TODO: implement commands
-
-
 class Application:
-    def execute(self, args=[], inp=None, output=None) -> String:
+    def execute(self, args, input, output):
         return output
 
     def get_str_from_deque(self, dq):
@@ -29,7 +26,7 @@ class Application:
 # by using wildcard characters.
 class Globbing:
     @classmethod
-    def get_dirs_or_files(cls, file_patterns):
+    def get_files(cls, file_patterns):
         files = []
         for file_pattern in file_patterns:
             globbing = glob(file_pattern)
@@ -49,13 +46,11 @@ class UnsafeDecorator(Application):
     def __init__(self, wrapped: Application):
         self._wrapped = wrapped
 
-    def execute(self, args=[], inp=None, output=None):
+    def execute(self, args, input, output):
         try:
-            strout = self._wrapped.execute(args)
+            self._wrapped.execute(args, input, output)
         except ValueError as v:
             print(v)
-        else:
-            return strout
 
 
 class Cut(Application):
@@ -95,19 +90,16 @@ class Cut(Application):
         b2slice = bytes(input_str, encoding="utf-8")
         bytes2take = self.getBytesToTake(arg_b2slice, len(b2slice))
 
-        # TODO: CONTINUE
         sliced = [b2slice[bytes2take[i]] for i in range(0, len(bytes2take))]
         bsliced = bytes(sliced)
         return bsliced.decode()
 
-    def execute(self, args=[], inp=None, output=deque):
-        output = deque([])
-
+    def execute(self, args, input, output):
         if len(args) == 2:
             if args[0] != "-b":
                 raise ValueError("wrong flags")
             else:
-                for str2slice in sys.stdin.readlines():
+                for str2slice in input:
                     strsliced = self.get_outputstr_from_slicedbytes(
                         str2slice.strip(), args[1]
                     )
@@ -118,7 +110,7 @@ class Cut(Application):
                 raise ValueError("wrong flags")
             else:
                 print("this is args", args[2])
-                filepath = Globbing.get_dirs_or_files([args[2]])[0]
+                filepath = Globbing.get_files([args[2]])[0]
                 with open(filepath) as reader:
                     lines = reader.readlines()
                     for line in lines:
@@ -131,16 +123,11 @@ class Cut(Application):
         else:
             raise ValueError("wrong number of command line arguments")
 
-        strout = self.get_str_from_deque(output)
-        return strout
-
 
 # uniq function detects and deletes adjacent duplicate lines from an input file/stdin
 # and prints the result to stdout
 class Uniq(Application):
-    def execute(self, args=[], inp=None, output=deque):
-        output = deque([])
-
+    def execute(self, args, input, output):
         def uniq_noi(lines):
             prevline = ""
             for line in lines:
@@ -156,52 +143,49 @@ class Uniq(Application):
                     prevline = line.lower()
 
         if len(args) == 0:
-            uniq_noi(sys.stdin.readlines())
+            uniq_noi(input)
         elif len(args) == 1:
             if args[0] == "-i":
-                uniq_wi(sys.stdin.readlines())
+                uniq_wi(input)
             else:
-                filepath = Globbing.get_dirs_or_files([args[0]])[0]
+                filepath = Globbing.get_files([args[0]])[0]
                 with open(filepath, "r") as reader:
                     uniq_noi(reader.readlines())
         elif len(args) == 2:
             if args[0] != "-i":
                 raise ValueError("wrong flags")
             else:
-                filepath = Globbing.get_dirs_or_files([args[1]])[0]
+                filepath = Globbing.get_files([args[1]])[0]
                 with open(filepath, "r") as reader:
                     uniq_wi(reader.readlines())
         else:
             raise ValueError("wrong number of command line arguments")
 
-        strout = self.get_str_from_deque(output)
-        return strout
-
 
 class Sort(Application):
-    def execute(self, args=[], inp=None, output=deque):
+    def execute(self, args, input, output):
         to_be_sorted = []
         is_reverse = False
         if len(args) == 0:
-            to_be_sorted = sys.stdin.readlines()
+            to_be_sorted = input
             to_be_sorted = [word.strip() for word in to_be_sorted]
             # stdin with only whitespaces ignored
             to_be_sorted = [word for word in to_be_sorted if len(word) > 0]
         elif len(args) == 1:
             if (args[0]) == "-r":
                 is_reverse = True
-                to_be_sorted = sys.stdin.readlines()
+                to_be_sorted = input
                 to_be_sorted = [word.strip() for word in to_be_sorted]
                 # stdin with only whitespaces ignored
                 to_be_sorted = [word for word in to_be_sorted if len(word) > 0]
             else:
-                file = Globbing.get_dirs_or_files([args[0]])[0]
+                file = Globbing.get_files([args[0]])[0]
                 with open(file) as f:
                     to_be_sorted = [word.strip() for word in f.readlines()]
         elif len(args) == 2:
             if args[0] == "-r":
                 is_reverse = True
-                file = Globbing.get_dirs_or_files([args[1]])[0]
+                file = Globbing.get_files([args[1]])[0]
                 with open(file) as f:
                     to_be_sorted = [word.strip() for word in f.readlines()]
             else:
@@ -212,76 +196,79 @@ class Sort(Application):
         sorted_array = sorted(to_be_sorted, reverse=is_reverse)
         sorted_array = [f"{w}\n" for w in sorted_array]
 
-        output = deque(sorted_array)
-
-        strout = self.get_str_from_deque(output)
-        return strout
+        output.extend(deque(sorted_array))
 
 
 class Grep(Application):
-    def execute(self, args=[], inp=None, output=deque()):
+    def execute(self, args, input, output):
         # minimum number of argument for grep is 2
-        if len(args) < 2:
+        if len(args) < 1:
             raise ValueError("wrong number of command line arguments")
         # grep tries to find a pattern of each line in a file
         pattern = args[0]
 
-        files = Globbing.get_dirs_or_files(args[1:])
+        if len(args) == 2:
+            files = Globbing.get_files(args[1:])
 
-        for file in files:
-            with open(file) as f:
-                lines = f.readlines()
-                for line in lines:
-                    # if there is a match
-                    if re.search(pattern, line):
-                        # if more than one files
-                        if len(files) > 1:
-                            output.append(f"{file}:{line}")
-                        else:
-                            output.append(line)
-        strout = self.get_str_from_deque(output)
-        return strout
+            for file in files:
+                with open(file) as f:
+                    lines = f.readlines()
+                    for line in lines:
+                        # if there is a match
+                        if re.search(pattern, line):
+                            # if more than one files
+                            if len(files) > 1:
+                                output.append(f"{file}:{line}")
+                            else:
+                                output.append(line)
+        elif len(args) == 1:
+            for line in input:
+                if re.search(pattern, line):
+                    output.append(line)
 
 
 class Tail(Application):
-    def execute(self, args=[], inp=None, output=deque()):
-        if len(args) != 1 and len(args) != 3:
+    def execute(self, args, input, output):
+        if len(args) > 3 or len(args) == 2:
             raise ValueError("wrong number of command line arguments")
-        if len(args) == 1:
+        if len(args) == 0:
+            file = ""
+        elif len(args) == 1:
             num_lines = 10
-            files = Globbing.get_dirs_or_files([args[0]])
+            files = Globbing.get_files([args[0]])
             if len(files) > 1:
                 raise ValueError("too many files")
             else:
                 file = files[0]
-        if len(args) == 3:
+        elif len(args) == 3:
             if args[0] != "-n":
                 raise ValueError("wrong flags")
             else:
                 num_lines = int(args[1])
-                files = Globbing.get_dirs_or_files([args[2]])
+                files = Globbing.get_files([args[2]])
                 if len(files) > 1:
                     raise ValueError("too many files")
                 else:
                     file = files[0]
-        with open(file) as f:
-            lines = f.readlines()
-            display_length = min(len(lines), num_lines)
-            for i in range(0, display_length):
-                output.append(lines[len(lines) - display_length + i])
+        if file == "":
+            lines = input
+        else:
+            with open(file) as f:
+                lines = f.readlines()
 
-        strout = self.get_str_from_deque(output)
-        return strout
+        display_length = min(len(lines), num_lines)
+        for i in range(0, display_length):
+            output.append(lines[len(lines) - display_length + i])
 
 
 class Head(Application):
-    def execute(self, args=[], inp=None, output=deque()):
+    def execute(self, args, input, output):
         # head command only have 1 or 3 arguments
         if len(args) != 1 and len(args) != 3:
             raise ValueError("wrong number of command line arguments")
         if len(args) == 1:
             num_lines = 10
-            files = Globbing.get_dirs_or_files([args[0]])
+            files = Globbing.get_files([args[0]])
             if len(files) > 1:
                 raise ValueError("too many files")
             else:
@@ -291,7 +278,7 @@ class Head(Application):
                 raise ValueError("wrong flags")
             else:
                 num_lines = int(args[1])
-                files = Globbing.get_dirs_or_files([args[2]])
+                files = Globbing.get_files([args[2]])
                 if len(files) > 1:
                     raise ValueError("too many files")
                 else:
@@ -303,41 +290,31 @@ class Head(Application):
             for i in range(0, min(len(lines), num_lines)):
                 output.append(lines[i])
 
-        strout = self.get_str_from_deque(output)
-        return strout
-
 
 # echo input stream
 class Echo(Application):
-    def execute(self, args=[], inp=None, output=deque()):
+    def execute(self, args, input, output):
         output.append(" ".join(args) + "\n")
-
-        strout = self.get_str_from_deque(output)
-        return strout
 
 
 class Cat(Application):
-    def execute(self, args=[], inp=None, output=deque()):
+    def execute(self, args, input, output):
         if len(args) == 0:
-            text = input("")
+            text = input
             output.append(text)
 
-        files = Globbing.get_dirs_or_files(args)
+        files = Globbing.get_files(args)
         for file in files:
             with open(file) as f:
                 # calling file object to read the file and return string
                 output.append(f.read())
-
-        strout = self.get_str_from_deque(output)
-
-        return strout
 
 
 # get current working directory
 class Pwd(Application):
     ok_args = ["-L", "-P"]
 
-    def execute(self, args=[], inp=None, output=deque()) -> String:
+    def execute(self, args, input, output):
         flag_args = [a for a in args if "-" in a]
         wrong_flags = [a for a in flag_args if a not in self.ok_args]
 
@@ -349,24 +326,20 @@ class Pwd(Application):
         else:
             output.append(os.getcwd())
 
-        strout = self.get_str_from_deque(output)
-
-        return strout
-
 
 # change current working directory
 class Cd(Application):
-    def execute(self, args=["."], inp=None, output=None) -> String:
+    def execute(self, args, input, output):
         if len(args) > 1:
             raise ValueError("too many arguments")
         else:
             os.chdir(args[0])
 
-        return os.getcwd()
+        output.append(os.getcwd())
 
 
 class Find(Application):
-    def execute(self, args=[], inp=None, output=None):
+    def execute(self, args, input, output):
         if len(args) == 2:
             if args[0] != "-name":
                 raise ValueError("wrong flags")
@@ -385,12 +358,12 @@ class Find(Application):
 
         globbing = glob(f"{rootdir}/**/{pattern}", recursive=True)
 
-        strout = "\n".join(globbing)
-        return strout
+        for g in globbing:
+            output.append(g + "\n")
 
 
 class Ls(Application):
-    def execute(self, args=[], inp=None, output=deque()) -> String:
+    def execute(self, args, input, output):
         if len(args) == 0:
             # get the current working directory
             ls_dir = os.getcwd()
@@ -405,11 +378,6 @@ class Ls(Application):
         for f in files:
             if not f.startswith("."):
                 output.append(f + "\n")
-
-        strout = self.get_str_from_deque(output)
-
-        print(strout)
-        return strout
 
 
 # factory design pattern
@@ -436,28 +404,7 @@ def create_application(app_name: str = "application"):
 if __name__ == "__main__":
     print("This is Sort Function")
     app = create_application("sort")
-    app.execute()
-
-    """print("This is Head function")
-    app = create_application("head")
-    print(app.execute(["-n", 3, "../reqe*.txt"]))
-
-    print("This is Cat function")
-    app = create_application("cat")
-    app.execute()
-
-    print("This is Cd function")
-    app = create_application("cd")
-    app.execute(["C:\\github\\fnooi\\content\\tenang"])
-
-    print("\nThis is Pwd function")
-    app = create_application("pwd")
-    app.execute()
-
-    print("\nThis is Unsafe decorator function. Program will continue after error.")
-    app = UnsafeDecorator(create_application("ls"))
-    app.execute(["args1", "args2"])
-
-    print("\nThis is normal Ls function. Program will stop after error.")
-    app = create_application("ls")
-    app.execute(["args1", "args2"])"""
+    inp = deque()
+    out = deque()
+    app.execute([], inp, out)
+    print(app.get_str_from_deque())
