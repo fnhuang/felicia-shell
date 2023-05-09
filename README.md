@@ -8,3 +8,10 @@ Similarly to other shells, it provides a [REPL](https://en.wikipedia.org/wiki/Re
 - [Language](doc/language.md)
 - [Applications](doc/applications.md)
 - [Command Line Interface](doc/interface.md)
+
+The final code written by me implemented 3 software design patterns: 
+- decorator for Unsafe application call
+- factory for create application
+- transformer implemented with lark to traverse down the tree of commands
+More information on how to implement software design patterns in python can be viewed at https://github.com/faif/python-patterns
+
