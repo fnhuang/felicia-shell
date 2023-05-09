@@ -13,7 +13,8 @@ class Command:
     def eval(self, input, output):
         return output
 
-
+# dataclass decorator allows the object to be printed in an understandable manner
+# because it automatically generates the `__str__()` method 
 @dataclass
 class Call(Command):
     app: Application
