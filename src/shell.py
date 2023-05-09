@@ -141,7 +141,6 @@ def old_eval(cmdline, out):
 
 def eval(cmdline, out):
     cmd = parse(cmdline)
-    print(cmd)
     cmd.eval(deque(), out)
 
 

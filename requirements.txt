@@ -2,3 +2,4 @@ nose2
 coverage
 flake8-html
 junit2html
+lark

@@ -1,6 +1,5 @@
 import io
 import os
-import pytest
 from collections import deque
 from tokenize import String
 from typing import Type
@@ -50,7 +49,7 @@ class UnsafeDecorator(Application):
         try:
             self._wrapped.execute(args, input, output)
         except ValueError as v:
-            print(v)
+            print(v, file=sys.stderr)
 
 
 class Cut(Application):
@@ -84,12 +83,11 @@ class Cut(Application):
                 else:
                     raise ValueError("wrong bytes arg")
 
-        return bytes2take
+        return list(set(bytes2take))
 
     def get_outputstr_from_slicedbytes(self, input_str, arg_b2slice):
         b2slice = bytes(input_str, encoding="utf-8")
         bytes2take = self.getBytesToTake(arg_b2slice, len(b2slice))
-
         sliced = [b2slice[bytes2take[i]] for i in range(0, len(bytes2take))]
         bsliced = bytes(sliced)
         return bsliced.decode()
@@ -109,7 +107,6 @@ class Cut(Application):
             if args[0] != "-b":
                 raise ValueError("wrong flags")
             else:
-                print("this is args", args[2])
                 filepath = Globbing.get_files([args[2]])[0]
                 with open(filepath) as reader:
                     lines = reader.readlines()
@@ -229,6 +226,7 @@ class Grep(Application):
 
 class Tail(Application):
     def execute(self, args, input, output):
+        num_lines = 10
         if len(args) > 3 or len(args) == 2:
             raise ValueError("wrong number of command line arguments")
         if len(args) == 0:
@@ -264,6 +262,7 @@ class Tail(Application):
 class Head(Application):
     def execute(self, args, input, output):
         # head command only have 1 or 3 arguments
+        num_lines = 10
         if len(args) != 1 and len(args) != 3:
             raise ValueError("wrong number of command line arguments")
         if len(args) == 1:
@@ -300,8 +299,8 @@ class Echo(Application):
 class Cat(Application):
     def execute(self, args, input, output):
         if len(args) == 0:
-            text = input
-            output.append(text)
+            for i in input:
+                output.append(i)
 
         files = Globbing.get_files(args)
         for file in files:
@@ -335,7 +334,7 @@ class Cd(Application):
         else:
             os.chdir(args[0])
 
-        output.append(os.getcwd())
+        # output.append(os.getcwd())
 
 
 class Find(Application):
@@ -359,7 +358,7 @@ class Find(Application):
         globbing = glob(f"{rootdir}/**/{pattern}", recursive=True)
 
         for g in globbing:
-            output.append(g + "\n")
+            output.append("./" + os.path.relpath(g) + "\n")
 
 
 class Ls(Application):
@@ -399,12 +398,3 @@ def create_application(app_name: str = "application"):
     }
 
     return applications[app_name]()
-
-
-if __name__ == "__main__":
-    print("This is Sort Function")
-    app = create_application("sort")
-    inp = deque()
-    out = deque()
-    app.execute([], inp, out)
-    print(app.get_str_from_deque())
